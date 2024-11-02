@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Inventario</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    
+    <style>
+        * {
+            color: #ffffff;
+        }
+        body {
+            background-image: url(https://images.unsplash.com/photo-1636499410733-c1244037bfa1?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjN8fEdST0NFUklFUyUyMFNMT1JFfGVufDB8fDB8fHww);
+            background-size: cover;
+            background-repeat: no-repeat;
+            color: aliceblue;
+        }
+        .translucent {
+            background-color: rgba(0, 0, 0, 0.658);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.623);
+            color: aliceblue;
+        }
+        .img-thumbnail {
+            width: 100px;
+            height: auto;
+        }
+        .low-inventory {
+            background-color: rgba(255, 0, 0, 0.3) !important;
+            color: #ffffff !important;
+        }
+        .btn-success {
+            background: linear-gradient(#1c2424, #153236);
+            border-color: #28a74600; 
+        }
+        .btn-success:hover {
+            background: linear-gradient(#151f15, #202929);
+            border-color: #ffffff; 
+        }
+        .btn-space {
+            margin-right: 10px; 
+            transition: all 0.2s ease;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            }
+            .btn-space:hover {
+            transform: scale(1.05);
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+         }
+            
+        #product-select {
+            color: white; 
+            background-color: #333; 
+        }
+
+            
+        #product-select:focus {
+            background-color: black; 
+        }
+        .active {
+            background: linear-gradient(#3a4d4f, #2a3a3c) !important;
+            border-color: #ffffff;
+        }
+            
+        .form-list {
+            background-color: black; 
+            color: white; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin-top: 10px; 
+        }
+
+    </style>
+</head>
+
+<body>
+    <div id="app" class="container mt-5">
+        <h1 class="main-title text-center mb-4">Gestión de Inventario</h1>
+        <nav class="nav-links mb-4">
+            <ul class="nav nav-pills justify-content-center">
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'add'">Agregar Producto</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'stock'">Productos en Stock</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'sales'">Registrar Venta</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'sold'">Productos Vendidos</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'clients'">Ventas a Clientes</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'search'">Buscador</a></li>
+            </ul>
+        </nav>
+
+        <!-- Sección de Agregar/Editar Producto -->
+        <div v-if="view === 'add'" class="translucent">
+            <h2>{{ isEditing ? 'Editar Producto' : 'Agregar Producto' }}</h2>
+            <form @submit.prevent="isEditing ? updateProduct() : addProduct()">
+                <div class="form-group">
+                    <label for="product-name">Nombre:</label>
+                    <input type="text" id="product-name" v-model="currentProduct.name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="product-price">Precio:</label>
+                    <input type="number" id="product-price" v-model.number="currentProduct.price" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="product-quantity">Cantidad:</label>
+                    <input type="number" id="product-quantity" v-model.number="currentProduct.quantity" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="product-supplier">Proveedor:</label>
+                    <input type="text" id="product-supplier" v-model="currentProduct.supplier" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="product-image">Imagen (URL):</label>
+                    <input type="text" id="product-image" v-model="currentProduct.image" class="form-control">
+                </div>
+                <button type="submit" class="btn btn-success btn-space">{{ isEditing ? 'Actualizar Producto' : 'Agregar Producto' }}</button>
+                <button type="button" class="btn btn-danger btn-space" v-if="isEditing" @click="cancelEdit">Cancelar</button>
+            </form>
+        </div>
+
+        <!-- Sección de Productos en Stock -->
+        <div v-if="view === 'stock'" class="translucent">
+            <h2>Productos en Stock</h2>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Cantidad</th>
+                        <th>Proveedor</th>
+                        <th>Imagen</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="product in products" :key="product.id" :class="{ 'low-inventory': product.quantity < 5 }">
+                        <td>{{ product.id }}</td>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.price }}</td>
+                        <td>{{ product.quantity }}</td>
+                        <td>{{ product.supplier }}</td>
+                        <td>
+                            <img v-if="product.image" :src="product.image" alt="Imagen" class="img-thumbnail" />
+                            <span v-else>No disponible</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-warning btn-space" @click="editProduct(product)">Editar</button>
+                            <button class="btn btn-danger btn-space" @click="deleteProduct(product.id)">Eliminar</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+
+         <!-- Registrar Venta -->
+      
+        <div v-if="view === 'sales'" class="translucent">
+            <h2>Registrar Venta</h2>
+    
+            <!-- Formulario de Selección de Productos -->
+            <form @submit.prevent="addProductToSale" class="bg-dark p-3">
+                <div class="form-group">
+                    <label class="text-white">Producto:</label>
+                    <select v-model="selectedProductId" class="form-control" required>
+                        <option class="form-list" disabled value="">Selecciona un producto</option>
+                        <option class="form-list" v-for="product in products" :value="product.id" :key="product.id">
+                            {{ product.name }} - Precio: {{ product.price }} - Stock: {{ product.quantity }}
+                        </option>
+                    </select>
+                </div>
+    
+                <div class="form-group mt-2">
+                    <label class="text-white">Cantidad:</label>
+                    <input type="number" v-model.number="selectedQuantity" class="form-control" required min="1">
+                </div>
+    
+                <button type="submit" class="btn btn-primary mt-3">Agregar Producto</button>
+            </form>
+    
+
+            <!-- Lista de Productos Seleccionados -->
+            <div v-if="sale.items.length > 0" class="bg-dark p-3 mt-4 rounded">
+                <h4 class="text-white">Productos en la Venta:</h4>
+                <ul class="list-group">
+                    <li class="form-list" v-for="(item, index) in sale.items" :key="index" class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ item.product.name }} - Cantidad: {{ item.quantity }} - Total: ${{ item.product.price * item.quantity }}</span>
+                        <button class="btn btn-danger btn-sm" @click="removeSaleItem(index)">Eliminar</button>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Campo Nombre del Cliente -->
+            <div class="form-group mt-4">
+                <label>Nombre del Cliente:</label>
+                <input type="text" v-model="sale.customerName" class="form-control" required>
+            </div>
+
+            <!-- Botón Registrar Venta -->
+            <button @click="registerSale" class="btn btn-success mt-3" :disabled="sale.items.length === 0">Registrar Venta</button>
+        </div>
+
+    
+        <!-- Sección de Productos Vendidos -->
+        <div v-if="view === 'sold'" class="translucent">
+            <h2>Productos Vendidos</h2>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Cantidad Vendida</th>
+                        <th>Total</th>
+                        <th>Cliente</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="sold in soldProducts" :key="sold.id">
+                        <td>{{ sold.id }}</td>
+                        <td>{{ sold.name }}</td>
+                        <td>{{ sold.price }}</td>
+                        <td>{{ sold.soldQuantity }}</td>
+                        <td>{{ (sold.price * sold.soldQuantity).toFixed(2) }}</td>
+                        <td>{{ sold.customerName }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+            <!-- Sección de Ventas por Cliente -->
+        <div v-if="view === 'clients'" class="translucent">
+            <h2>Ventas a Clientes</h2>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>ID del Producto</th>
+                        <th>Nombre del Producto</th>
+                        <th>Precio</th>
+                        <th>Cantidad Vendida</th>
+                        <th>Total</th>
+                        <th>Fecha</th> <!-- Nueva columna para la fecha -->
+                    </tr>
+                </thead>        
+                <tbody>
+                    <template v-for="(sales, customer) in salesByClient">
+                        <tr v-for="(sale, index) in sales" :key="sale.id">
+                            <!-- Cliente: solo en la primera fila de cada grupo de ventas por cliente -->
+                            <td v-if="index === 0" :rowspan="sales.length">{{ customer }}</td>
+                            <td>{{ sale.id }}</td>
+                            <td>{{ sale.name }}</td>
+                            <td>{{ sale.price }}</td>
+                            <td>{{ sale.soldQuantity }}</td>
+                            <td>{{ (sale.price * sale.soldQuantity).toFixed(2) }}</td>
+                            <td>{{ sale.date }}</td> <!-- Muestra la fecha de la venta -->
+                        </tr>
+                        <tr v-if="sales.length > 1">
+                            <td colspan="6" class="text-right"><strong>Total Gastado por el Cliente:</strong></td>
+                            <td>
+                                <strong>
+                                    {{ sales.reduce((total, sale) => total + (sale.price * sale.soldQuantity), 0).toFixed(2) }}
+                                </strong>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+
+
+        <!-- Sección de Buscador -->
+        <div v-if="view === 'search'" class="translucent">
+            <h2>Buscador</h2>
+            <!-- Buscador de productos -->
+            <div class="form-group">
+                <label for="product-search">Buscar Producto:</label>
+                <input type="text" id="product-search" v-model="searchProductName" class="form-control" placeholder="Nombre del producto">
+                <button class="btn btn-primary btn-space mt-2" @click="searchProduct">Buscar</button>
+            </div>
+            <table v-if="productSearchResults.length > 0" class="table table-bordered mt-2">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Cantidad</th>
+                        <th>Proveedor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="product in productSearchResults" :key="product.id">
+                        <td>{{ product.id }}</td>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.price }}</td>
+                        <td>{{ product.quantity }}</td>
+                        <td>{{ product.supplier }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Buscador de clientes -->
+            <div class="form-group mt-4">
+                <label for="client-search">Buscar Cliente:</label>
+                <input type="text" id="client-search" v-model="searchClientName" class="form-control" placeholder="Nombre del cliente">
+                <button class="btn btn-primary btn-space mt-2" @click="searchClient">Buscar</button>
+            </div>
+            <table v-if="clientSearchResults.length > 0" class="table table-bordered mt-2">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>ID del Producto</th>
+                        <th>Nombre del Producto</th>
+                        <th>Precio</th>
+                        <th>Cantidad</th>
+                        <th>Total</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="sale in clientSearchResults" :key="sale.id">
+                        <td>{{ sale.customerName }}</td>
+                        <td>{{ sale.id }}</td>
+                        <td>{{ sale.name }}</td>
+                        <td>{{ sale.price }}</td>
+                        <td>{{ sale.soldQuantity }}</td>
+                        <td>{{ (sale.price * sale.soldQuantity).toFixed(2) }}</td>
+                        <td>{{ sale.date }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                view: 'home',
+                products: [ { id: 1, name: 'Jugo Boing', price: 16, quantity: 10, supplier: 'Grupo Pascual', image: 'https://farmaciasleyva.com/cdn/shop/files/7501039400081_52563e66-f425-4f04-89ed-401b21c27a96_800x.jpg?v=1722009598' },
+                { id: 2, name: 'Sopa de dinosaurios', price: 20, quantity: 5, supplier: 'La moderna', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8_PIr_9ljCZ_6odLM-vwkXvzpJuyrAEZsEA&s' },
+                { id: 3, name: 'Harina de trigo', price: 15, quantity: 8, supplier: 'La moderna', image: 'https://www.lamoderna.com.mx/images/catalogo/regular/harinas/7501018316006.jpg' },
+                { id: 4, name: 'Aceite de soya', price: 35, quantity: 3, supplier: 'Nutrioli', image: 'https://d1zc67o3u1epb0.cloudfront.net/media/catalog/product/2/0/20106_1.jpg?width=265&height=390&store=default&image-type=image' },
+                { id: 5, name: 'Norsuisa', price: 30, quantity: 12, supplier: 'Knor', image: 'https://masbodegaonline.com.mx/media/catalog/product/i/m/image_7_5891.jpeg?optimize=low&bg-color=255,255,255&fit=bounds&height=700&width=700&canvas=700:700' },
+                { id: 6, name: 'Coca cola', price: 15, quantity: 2, supplier: 'Coca Cola', image: 'https://subodega.mx/articulo/6906/01.webp' },
+                { id: 7, name: 'Paleta payaso', price: 18, quantity: 7, supplier: 'Ricolino', image: 'https://i5.walmartimages.com.mx/gr/images/product-images/img_large/00762220223214L.jpg' },
+                { id: 8, name: 'Jamon de pavo', price: 175, quantity: 6, supplier: 'FUD', image: 'https://i5.walmartimages.com.mx/gr/images/product-images/img_large/00020567400000L.jpg' },
+                { id: 9, name: 'Tortillinas', price: 19, quantity: 4, supplier: 'Tia Rosa', image: 'https://chedrauimx.vtexassets.com/arquivos/ids/37292626/7501030430421_00.jpg?v=638641471819900000' },
+                { id: 10, name: 'Queso panela', price: 120, quantity: 9, supplier: 'Lala', image: 'https://www.tasteboutique.com/cdn/shop/products/Fotos-tienda-en-linea-Feb2023_0007_40_600x.png?v=1676577966' },],
+                            soldProducts: [{ id: 1, name: 'Jugo Boing', price: 16, soldQuantity: 2, total: 32.00, customerName: 'Giovanni' },
+                { id: 2, name: 'Harina de trigo', price: 15, soldQuantity: 1, total: 15.00, customerName: 'Jane' },
+                { id: 3, name: 'Norsuisa', price: 30, soldQuantity: 4, total: 120.00, customerName: 'Rosa' },
+                { id: 4, name: 'Paleta payaso', price: 18, soldQuantity: 3, total: 54.00, customerName: 'Eli' },
+                { id: 5, name: 'Tortillinas', price: 19, soldQuantity: 2, total: 38.00, customerName: 'Mario' },],
+                salesByClient: {
+                    'Giovanni': [
+                        { id: 1, name: 'Jugo Boing', price: 16, soldQuantity: 2, total: 32.00, date: '2024-01-01' },
+                    ],
+                    'Jane': [
+                        { id: 2, name: 'Harina de trigo', price: 15, soldQuantity: 1, total: 15.00, date: '2024-01-02' },
+                    ],
+                    'Rosa': [
+                        { id: 3, name: 'Norsuisa', price: 30, soldQuantity: 4, total: 120.00, date: '2024-01-03' },
+                    ],
+                    'Eli': [
+                        { id: 4, name: 'Paleta payaso', price: 18, soldQuantity: 3, total: 54.00, date: '2024-01-04' },
+                    ],
+                    'Mario': [
+                        { id: 5, name: 'Tortillinas', price: 19, soldQuantity: 2, total: 38.00, date: '2024-01-05' },
+                    ],
+                },
+                searchProductName: '',
+                searchClientName: '',
+                productSearchResults: [],
+                clientSearchResults: [],
+                sale: {
+                items: [],
+                quantity: 1,
+                customerName: '',
+                },
+                selectedProductId: '',
+                selectedQuantity: 1,
+                currentProduct: {
+                    id: null,
+                    name: '',
+                    price: 0,
+                    quantity: 0,
+                    supplier: '',
+                    image: ''
+                },
+                isEditing: false
+            },
+            
+            methods: {
+
+                changeView(viewName) {
+                    this.view = viewName;
+                },
+                addProduct() {
+                    const newProduct = { ...this.currentProduct, id: Date.now() };
+                    this.products.push(newProduct);
+                    this.resetCurrentProduct();
+                },
+                editProduct(product) {
+                    this.currentProduct = { ...product };
+                    this.isEditing = true;
+                },
+                updateProduct() {
+                    const index = this.products.findIndex(p => p.id === this.currentProduct.id);
+                    if (index !== -1) {
+                        this.products.splice(index, 1, { ...this.currentProduct });
+                    }
+                    this.isEditing = false;
+                    this.resetCurrentProduct();
+                },
+                deleteProduct(id) {
+                    this.products = this.products.filter(product => product.id !== id);
+                },
+                resetCurrentProduct() {
+                    this.currentProduct = { id: null, name: '', price: 0, quantity: 0, supplier: '', image: '' };
+                    this.isEditing = false;
+                },
+                cancelEdit() {
+                    this.resetCurrentProduct();
+                    this.isEditing = false;
+                },
+                addProductToSale() {
+                const product = this.products.find(p => p.id === this.selectedProductId);
+                if (product && product.quantity >= this.selectedQuantity) {
+                    this.sale.items.push({
+                        product,
+                        quantity: this.selectedQuantity
+                    });
+
+                    this.selectedProductId = '';
+                    this.selectedQuantity = 1;
+                } else {
+                    alert('Cantidad no disponible o producto no seleccionado.');
+                }
+                },
+                removeSaleItem(index) {
+                    this.sale.items.splice(index, 1);
+                },
+                registerSale() {
+                    if (this.sale.customerName === '') {
+                        alert("Por favor, ingresa el nombre del cliente");
+                        return;
+                    }
+
+                this.sale.items.forEach(item => {
+                    const product = this.products.find(p => p.id === item.product.id);
+                    if (product && product.quantity >= item.quantity) {
+                        product.quantity -= item.quantity;
+
+                        const saleRecord = {
+                            ...product,
+                            soldQuantity: item.quantity,
+                            customerName: this.sale.customerName,
+                            date: new Date().toLocaleDateString()
+                        };
+
+                        this.soldProducts.push(saleRecord);
+
+                        if (!this.salesByClient[this.sale.customerName]) {
+                            this.salesByClient[this.sale.customerName] = [];
+                        }
+                        this.salesByClient[this.sale.customerName].push(saleRecord);
+                    }
+                });
+
+                    this.resetSale();
+                },  
+
+                resetSale() {
+                    this.sale = {
+                        items: [],
+                        customerName: ''
+                    };
+                    this.selectedProductId = '';
+                    this.selectedQuantity = 1;
+                },
+
+                searchProduct() {
+                    this.productSearchResults = this.products.filter(product =>
+                        product.name.toLowerCase().includes(this.searchProductName.toLowerCase())
+                    );
+                },
+                searchClient() {
+                this.clientSearchResults = []; 
+
+                // Filtrar las ventas por cliente usando la lógica similar a searchProduct
+                Object.entries(this.salesByClient).forEach(([customerName, sales]) => {
+                    sales.forEach(sale => {
+                        if (customerName.toLowerCase().includes(this.searchClientName.toLowerCase())) {
+                            this.clientSearchResults.push({
+                                ...sale,
+                                customerName: customerName 
+                            });
+                        }
+                    });
+                });
+            }
+            }
+        });
+    </script>
+</body>
+</html>
