@@ -65,12 +65,13 @@
         }
             
         .form-list {
-            background-color: black; 
+            background-color: #333;; 
             color: white; 
             padding: 10px; 
             border-radius: 5px; 
             margin-top: 10px; 
         }
+        
 
     </style>
 </head>
@@ -80,12 +81,13 @@
         <h1 class="main-title text-center mb-4">Gestión de Inventario</h1>
         <nav class="nav-links mb-4">
             <ul class="nav nav-pills justify-content-center">
-                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'add'">Agregar Producto</a></li>
-                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'stock'">Productos en Stock</a></li>
-                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'sales'">Registrar Venta</a></li>
-                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'sold'">Productos Vendidos</a></li>
-                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'clients'">Ventas a Clientes</a></li>
-                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="view = 'search'">Buscador</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="changeView('add')">Agregar Producto</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="changeView('stock')">Productos en Stock</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="changeView('sales')">Registrar Venta</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="changeView('sold')">Productos Vendidos</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="changeView('clients')">Ventas a Clientes</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="changeView('search')">Buscador</a></li>
+                <li class="nav-item"><a class="nav-link btn btn-success btn-space" href="#" @click="changeView('cart')">Carrito</a></li>
             </ul>
         </nav>
 
@@ -134,23 +136,69 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="product in products" :key="product.id" :class="{ 'low-inventory': product.quantity < 5 }">
+                    <tr v-for="product in products" :key="product.id">
                         <td>{{ product.id }}</td>
                         <td>{{ product.name }}</td>
                         <td>{{ product.price }}</td>
-                        <td>{{ product.quantity }}</td>
-                        <td>{{ product.supplier }}</td>
-                        <td>
-                            <img v-if="product.image" :src="product.image" alt="Imagen" class="img-thumbnail" />
-                            <span v-else>No disponible</span>
+                        <td :style="{ backgroundColor: product.quantity < 5 ? 'rgba(255, 0, 0, 0.3)' : 'transparent' }">
+                            {{ product.quantity }}
                         </td>
+                        <td>{{ product.supplier }}</td>
+                        <td><img v-if="product.image" :src="product.image" alt="Imagen" class="img-thumbnail" /></td>
                         <td>
-                            <button class="btn btn-warning btn-space" @click="editProduct(product)">Editar</button>
-                            <button class="btn btn-danger btn-space" @click="deleteProduct(product.id)">Eliminar</button>
+                            <button class="btn btn-warning" @click="editProduct(product)">Editar</button>
+                            <button class="btn btn-danger" @click="deleteProduct(product.id)">Eliminar</button>
+                            <button class="btn btn-primary" @click="addToCart(product)">Agregar al Carrito</button>
                         </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Sección de Carrito -->
+        <div v-if="view === 'cart'" class="translucent">
+            <h2>Carrito</h2>
+
+            <!-- Lista de productos en el carrito -->
+            <ul class="list-group mb-3" style="background-color: #333; color: white; border-radius: 5px;">
+                <li v-for="(item, index) in cart" :key="index" class="list-group-item" style="background-color: #333; color: white;">
+                    {{ item.name }} - Precio: {{ item.price }} - Cantidad: {{ item.quantity }}
+                    <button class="btn btn-danger btn-sm float-right" @click="removeFromCart(index)">Eliminar</button>
+                </li>
+            </ul>
+
+            <!-- Formulario para Seleccionar Productos de la Lista -->
+            <div class="form-group mt-4 p-3" style="background-color: #333; color: white; border-radius: 5px;">
+                <h4>Seleccionar Producto para Agregar al Carrito</h4>
+                
+                <label for="product-select">Producto:</label>
+                <select v-model="selectedProductId" id="product-select" class="form-control" style="background-color: #333; color: white;">
+                    <option disabled value="">Selecciona un producto</option>
+                    <option v-for="product in products" :value="product.id" :key="product.id">
+                        {{ product.name }} - Precio: ${{ product.price }} - Stock: {{ product.quantity }}
+                    </option>
+                </select>
+
+                <label for="quantity" class="mt-2">Cantidad:</label>
+                <input type="number" v-model.number="selectedQuantity" id="quantity" class="form-control" min="1" required>
+
+                <button class="btn btn-primary mt-3" @click="addProductFromList">Agregar al Carrito</button>
+            </div>
+
+            <!-- Formulario de Cliente y Método de Pago -->
+            <div class="form-group mt-4" style="background-color: #333; color: white; border-radius: 5px;">
+                <label>Nombre del Cliente:</label>
+                <input type="text" v-model="customerName" class="form-control" style="background-color: #333; color: white;">
+            </div>
+            <div class="form-group" style="background-color: #333; color: white; border-radius: 5px;">
+                <label>Método de Pago:</label>
+                <select v-model="paymentMethod" class="form-control" style="background-color: #333; color: white;">
+                    <option value="OXXO">OXXO</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Master Card">Master Card</option>
+                </select>
+            </div>
+            <button class="btn btn-success mt-3" @click="completePurchase">Realizar Compra</button>
         </div>
 
 
@@ -203,72 +251,66 @@
 
     
         <!-- Sección de Productos Vendidos -->
-        <div v-if="view === 'sold'" class="translucent">
-            <h2>Productos Vendidos</h2>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nombre</th>
-                        <th>Precio</th>
-                        <th>Cantidad Vendida</th>
-                        <th>Total</th>
-                        <th>Cliente</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="sold in soldProducts" :key="sold.id">
-                        <td>{{ sold.id }}</td>
-                        <td>{{ sold.name }}</td>
-                        <td>{{ sold.price }}</td>
-                        <td>{{ sold.soldQuantity }}</td>
-                        <td>{{ (sold.price * sold.soldQuantity).toFixed(2) }}</td>
-                        <td>{{ sold.customerName }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-            <!-- Sección de Ventas por Cliente -->
-        <div v-if="view === 'clients'" class="translucent">
-            <h2>Ventas a Clientes</h2>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Cliente</th>
-                        <th>ID del Producto</th>
-                        <th>Nombre del Producto</th>
-                        <th>Precio</th>
-                        <th>Cantidad Vendida</th>
-                        <th>Total</th>
-                        <th>Fecha</th> <!-- Nueva columna para la fecha -->
-                    </tr>
-                </thead>        
-                <tbody>
-                    <template v-for="(sales, customer) in salesByClient">
-                        <tr v-for="(sale, index) in sales" :key="sale.id">
-                            <!-- Cliente: solo en la primera fila de cada grupo de ventas por cliente -->
-                            <td v-if="index === 0" :rowspan="sales.length">{{ customer }}</td>
-                            <td>{{ sale.id }}</td>
-                            <td>{{ sale.name }}</td>
-                            <td>{{ sale.price }}</td>
-                            <td>{{ sale.soldQuantity }}</td>
-                            <td>{{ (sale.price * sale.soldQuantity).toFixed(2) }}</td>
-                            <td>{{ sale.date }}</td> <!-- Muestra la fecha de la venta -->
+            <div v-if="view === 'sold'" class="translucent">
+                <h2>Productos Vendidos</h2>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Precio</th>
+                            <th>Cantidad Vendida</th>
+                            <th>Total</th>
+                            <th>Cliente</th>
+                            <th>Fecha</th>
                         </tr>
-                        <tr v-if="sales.length > 1">
-                            <td colspan="6" class="text-right"><strong>Total Gastado por el Cliente:</strong></td>
-                            <td>
-                                <strong>
-                                    {{ sales.reduce((total, sale) => total + (sale.price * sale.soldQuantity), 0).toFixed(2) }}
-                                </strong>
-                            </td>
+                    </thead>
+                    <tbody>
+                        <tr v-for="sold in soldProducts" :key="sold.id">
+                            <td>{{ sold.id }}</td>
+                            <td>{{ sold.name }}</td>
+                            <td>{{ sold.price }}</td>
+                            <td>{{ sold.soldQuantity }}</td>
+                            <td>{{ sold.total }}</td>
+                            <td>{{ sold.customerName }}</td>
+                            <td>{{ sold.date }}</td>
                         </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
+                    </tbody>
+                </table>
+            </div>
 
+                <!-- Sección de Ventas por Cliente -->
+
+                   <div v-if="view === 'clients'" class="translucent">
+                        <h2>Ventas a Clientes</h2>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>ID del Producto</th>
+                                    <th>Nombre del Producto</th>
+                                    <th>Precio</th>
+                                    <th>Cantidad Vendida</th>
+                                    <th>Total</th>
+                                    <th>Fecha</th> <!-- Nueva columna para la fecha -->
+                                </tr>
+                            </thead>        
+                            <tbody>
+                                <template v-for="(sales, customer) in salesByClient">
+                                    <tr v-for="(sale, index) in sales" :key="sale.id">
+                                        <!-- Cliente: solo en la primera fila de cada grupo de ventas por cliente -->
+                                        <td v-if="index === 0" :rowspan="sales.length">{{ customer }}</td>
+                                        <td>{{ sale.id }}</td>
+                                        <td>{{ sale.name }}</td>
+                                        <td>{{ sale.price }}</td>
+                                        <td>{{ sale.soldQuantity }}</td>
+                                        <td>{{ (sale.price * sale.soldQuantity).toFixed(2) }}</td>
+                                        <td>{{ sale.date }}</td> <!-- Muestra la fecha de la venta -->
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
 
 
         <!-- Sección de Buscador -->
@@ -349,28 +391,31 @@
                 { id: 8, name: 'Jamon de pavo', price: 175, quantity: 6, supplier: 'FUD', image: 'https://i5.walmartimages.com.mx/gr/images/product-images/img_large/00020567400000L.jpg' },
                 { id: 9, name: 'Tortillinas', price: 19, quantity: 4, supplier: 'Tia Rosa', image: 'https://chedrauimx.vtexassets.com/arquivos/ids/37292626/7501030430421_00.jpg?v=638641471819900000' },
                 { id: 10, name: 'Queso panela', price: 120, quantity: 9, supplier: 'Lala', image: 'https://www.tasteboutique.com/cdn/shop/products/Fotos-tienda-en-linea-Feb2023_0007_40_600x.png?v=1676577966' },],
-                            soldProducts: [{ id: 1, name: 'Jugo Boing', price: 16, soldQuantity: 2, total: 32.00, customerName: 'Giovanni' },
-                { id: 2, name: 'Harina de trigo', price: 15, soldQuantity: 1, total: 15.00, customerName: 'Jane' },
-                { id: 3, name: 'Norsuisa', price: 30, soldQuantity: 4, total: 120.00, customerName: 'Rosa' },
-                { id: 4, name: 'Paleta payaso', price: 18, soldQuantity: 3, total: 54.00, customerName: 'Eli' },
-                { id: 5, name: 'Tortillinas', price: 19, soldQuantity: 2, total: 38.00, customerName: 'Mario' },],
+                            
                 salesByClient: {
                     'Giovanni': [
                         { id: 1, name: 'Jugo Boing', price: 16, soldQuantity: 2, total: 32.00, date: '2024-01-01' },
                     ],
                     'Jane': [
-                        { id: 2, name: 'Harina de trigo', price: 15, soldQuantity: 1, total: 15.00, date: '2024-01-02' },
+                        { id: 3, name: 'Harina de trigo', price: 15, soldQuantity: 1, total: 15.00, date: '2024-01-02' },
                     ],
                     'Rosa': [
-                        { id: 3, name: 'Norsuisa', price: 30, soldQuantity: 4, total: 120.00, date: '2024-01-03' },
+                        { id: 5, name: 'Norsuisa', price: 30, soldQuantity: 4, total: 120.00, date: '2024-01-03' },
                     ],
                     'Eli': [
-                        { id: 4, name: 'Paleta payaso', price: 18, soldQuantity: 3, total: 54.00, date: '2024-01-04' },
+                        { id: 7, name: 'Paleta payaso', price: 18, soldQuantity: 3, total: 54.00, date: '2024-01-04' },
                     ],
                     'Mario': [
-                        { id: 5, name: 'Tortillinas', price: 19, soldQuantity: 2, total: 38.00, date: '2024-01-05' },
+                        { id: 9, name: 'Tortillinas', price: 19, soldQuantity: 2, total: 38.00, date: '2024-01-05' },
                     ],
                 },
+                soldProducts: [{ id: 1, name: 'Jugo Boing', price: 16, soldQuantity: 2, total: 32.00, customerName: 'Giovanni', date: '2024-01-01' },
+                                { id: 3, name: 'Harina de trigo', price: 15, soldQuantity: 1, total: 15.00, customerName: 'Jane', date: '2024-01-02' },
+                                { id: 5, name: 'Norsuisa', price: 30, soldQuantity: 4, total: 120.00, customerName: 'Rosa', date: '2024-01-03' },
+                                { id: 7, name: 'Paleta Payaso', price: 18, soldQuantity: 3, total: 54.00, customerName: 'Eli', date: '2024-01-04' },
+                                { id: 9, name: 'Tortillinas', price: 19, soldQuantity: 2, total: 38.00, customerName: 'Mario', date: '2024-01-05' },],
+                cart: [],
+                paymentMethod: '',
                 searchProductName: '',
                 searchClientName: '',
                 productSearchResults: [],
@@ -394,10 +439,27 @@
             },
             
             methods: {
-
                 changeView(viewName) {
                     this.view = viewName;
+
+                    // Limpiar el estado de la tabla y búsquedas entre vistas
+                    this.clearViewState();
                 },
+                mounted() {
+                    this.clearViewState(); // Limpiar el estado inicial al cargar la app
+                },
+                clearViewState() {
+                    // Resetear las variables relacionadas con las vistas
+                    this.productSearchResults = [];
+                    this.clientSearchResults = [];
+                    this.searchProductName = '';
+                    this.searchClientName = '';
+                    this.sale = {
+                        items: [],
+                        customerName: ''
+                    };
+                },
+                
                 addProduct() {
                     const newProduct = { ...this.currentProduct, id: Date.now() };
                     this.products.push(newProduct);
@@ -427,59 +489,105 @@
                     this.isEditing = false;
                 },
                 addProductToSale() {
-                const product = this.products.find(p => p.id === this.selectedProductId);
-                if (product && product.quantity >= this.selectedQuantity) {
-                    this.sale.items.push({
-                        product,
-                        quantity: this.selectedQuantity
-                    });
+                    if (!this.selectedProductId) {
+                        alert("Por favor, selecciona un producto.");
+                        return;
+                    }
 
-                    this.selectedProductId = '';
-                    this.selectedQuantity = 1;
-                } else {
-                    alert('Cantidad no disponible o producto no seleccionado.');
-                }
+                    const product = this.products.find(p => p.id === this.selectedProductId);
+                    if (product && product.quantity >= this.selectedQuantity) {
+                        this.sale.items.push({
+                            product,
+                            quantity: this.selectedQuantity
+                        });
+
+                        // Resetear selección después de agregar
+                        this.selectedProductId = '';
+                        this.selectedQuantity = 1;
+                    } else {
+                        alert('Cantidad no disponible o producto no seleccionado.');
+                    }
                 },
+
                 removeSaleItem(index) {
                     this.sale.items.splice(index, 1);
                 },
+
+                addProductFromList() {
+                    if (!this.selectedProductId || this.selectedQuantity < 1) {
+                        alert("Por favor, selecciona un producto y una cantidad válida.");
+                        return;
+                    }
+
+                    const product = this.products.find(p => p.id === this.selectedProductId);
+                    if (product && product.quantity >= this.selectedQuantity) {
+                        // Agregar el producto al carrito y reducir el inventario
+                        this.cart.push({
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            quantity: this.selectedQuantity
+                        });
+                        product.quantity -= this.selectedQuantity;
+
+                        // Limpiar el formulario de selección
+                        this.selectedProductId = '';
+                        this.selectedQuantity = 1;
+                        alert('Producto agregado al carrito.');
+                    } else {
+                        alert("Cantidad insuficiente en stock o producto no seleccionado.");
+                    }
+                },
+
+
+                removeFromCart(index) {
+                    this.cart.splice(index, 1);
+                },
+
                 registerSale() {
                     if (this.sale.customerName === '') {
                         alert("Por favor, ingresa el nombre del cliente");
                         return;
                     }
 
-                this.sale.items.forEach(item => {
-                    const product = this.products.find(p => p.id === item.product.id);
-                    if (product && product.quantity >= item.quantity) {
-                        product.quantity -= item.quantity;
+                    this.sale.items.forEach(item => {
+                        const product = this.products.find(p => p.id === item.product.id);
+                        if (product && product.quantity >= item.quantity) {
+                            // Reducir stock en el inventario
+                            product.quantity -= item.quantity;
 
-                        const saleRecord = {
-                            ...product,
-                            soldQuantity: item.quantity,
-                            customerName: this.sale.customerName,
-                            date: new Date().toLocaleDateString()
-                        };
+                            const saleRecord = {
+                                id: product.id,
+                                name: product.name,
+                                price: product.price,
+                                soldQuantity: item.quantity,
+                                total: (product.price * item.quantity).toFixed(2),
+                                customerName: this.sale.customerName,
+                                date: new Date().toLocaleDateString()
+                            };
 
-                        this.soldProducts.push(saleRecord);
-
-                        if (!this.salesByClient[this.sale.customerName]) {
-                            this.salesByClient[this.sale.customerName] = [];
+                            // Agregar venta a productos vendidos y ventas por cliente
+                            this.soldProducts.push(saleRecord);
+                            if (!this.salesByClient[this.sale.customerName]) {
+                                this.salesByClient[this.sale.customerName] = [];
+                            }
+                            this.salesByClient[this.sale.customerName].push(saleRecord);
+                        } else {
+                            alert(`Cantidad insuficiente de ${product.name}`);
                         }
-                        this.salesByClient[this.sale.customerName].push(saleRecord);
-                    }
-                });
+                    });
 
+                    // Limpiar el formulario de venta
                     this.resetSale();
-                },  
-
+                },
                 resetSale() {
                     this.sale = {
                         items: [],
                         customerName: ''
                     };
-                    this.selectedProductId = '';
-                    this.selectedQuantity = 1;
+                },
+                calculateTotal(sales) {
+                    return sales.reduce((total, sale) => total + parseFloat(sale.total), 0).toFixed(2);
                 },
 
                 searchProduct() {
@@ -487,6 +595,55 @@
                         product.name.toLowerCase().includes(this.searchProductName.toLowerCase())
                     );
                 },
+                addToCart(product) {
+                this.cart.push({ ...product, quantity: 1 });
+                alert('Producto agregado al carrito.');
+            },
+            
+                        completePurchase() {
+                if (!this.customerName || !this.paymentMethod) {
+                    alert("Por favor, complete los campos de cliente y método de pago.");
+                    return;
+                }
+
+                if (this.cart.length === 0) {
+                    alert("El carrito está vacío. Agrega productos para realizar una compra.");
+                    return;
+                }
+
+                this.cart.forEach(item => {
+                    const product = this.products.find(p => p.id === item.id);
+                    if (product && product.quantity >= item.quantity) {
+                        product.quantity -= item.quantity;
+
+                        const saleRecord = {
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            soldQuantity: item.quantity,
+                            total: (product.price * item.quantity).toFixed(2),
+                            customerName: this.customerName,
+                            date: new Date().toLocaleDateString()
+                        };
+
+                        this.soldProducts.push(saleRecord);
+                        if (!this.salesByClient[this.customerName]) {
+                            this.salesByClient[this.customerName] = [];
+                        }
+                        this.salesByClient[this.customerName].push(saleRecord);
+                    } else {
+                        alert(`Cantidad insuficiente de ${product.name}`);
+                    }
+                });
+
+                this.clearViewState(); // Limpiar el estado después de completar la compra
+                this.cart = [];
+                this.customerName = '';
+                this.paymentMethod = '';
+
+                alert('Compra realizada con éxito y reflejada en el sistema.');
+            },
+
                 searchClient() {
                 this.clientSearchResults = []; 
 
